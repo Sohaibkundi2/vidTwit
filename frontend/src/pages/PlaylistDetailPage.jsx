@@ -4,6 +4,10 @@ import { getPlaylistById, deletePlaylist, removeVideoFromPlaylist } from "../api
 import { useAuth } from "../context/authContext"
 import dayjs from "dayjs"
 
+/**
+ * PlaylistDetailPage component displays individual playlist with video management
+ * @returns {JSX.Element} Playlist detail page component
+ */
 export default function PlaylistDetailPage() {
   const { playlistId } = useParams()
   const { user } = useAuth()

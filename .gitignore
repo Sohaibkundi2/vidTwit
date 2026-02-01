@@ -11,9 +11,7 @@ node_modules/
 ./backend/.env
 ./frontend/.env
 
-# IDE and editor files
-.vscode/
-.kiro/
+
 
 # OS generated files
 .DS_Store

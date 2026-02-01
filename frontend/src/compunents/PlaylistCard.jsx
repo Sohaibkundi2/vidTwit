@@ -1,6 +1,11 @@
 import { Link } from "react-router-dom"
 import dayjs from "dayjs"
 
+/**
+ * PlaylistCard component displays individual playlist information
+ * @param {Object} playlist - The playlist object containing playlist data
+ * @returns {JSX.Element} Playlist card component
+ */
 export default function PlaylistCard({ playlist }) {
   const { _id, name, description, videos, owner, createdAt } = playlist
 

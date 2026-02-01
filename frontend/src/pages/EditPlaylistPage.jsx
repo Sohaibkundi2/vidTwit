@@ -3,6 +3,10 @@ import { useParams, useNavigate } from "react-router-dom"
 import { getPlaylistById, updatePlaylist } from "../api"
 import { useAuth } from "../context/authContext"
 
+/**
+ * EditPlaylistPage component provides form to edit existing playlists
+ * @returns {JSX.Element} Edit playlist page component
+ */
 export default function EditPlaylistPage() {
   const { playlistId } = useParams()
   const navigate = useNavigate()

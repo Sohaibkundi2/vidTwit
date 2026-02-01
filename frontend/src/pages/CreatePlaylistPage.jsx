@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom"
 import { createPlaylist } from "../api"
 import { useAuth } from "../context/authContext"
 
+/**
+ * CreatePlaylistPage component provides form to create new playlists
+ * @returns {JSX.Element} Create playlist page component
+ */
 export default function CreatePlaylistPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -36,6 +40,10 @@ export default function CreatePlaylistPage() {
       
       const response = await createPlaylist(formData)
       const newPlaylist = response.data?.data
+      
+      if (!newPlaylist?._id) {
+        throw new Error("Failed to create playlist - invalid response")
+      }
       
       // Redirect to the new playlist
       navigate(`/playlist/${newPlaylist._id}`)

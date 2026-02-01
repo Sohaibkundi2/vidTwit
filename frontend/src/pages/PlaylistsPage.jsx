@@ -4,6 +4,10 @@ import { useAuth } from "../context/authContext"
 import PlaylistCard from "../compunents/PlaylistCard"
 import { Link } from "react-router-dom"
 
+/**
+ * PlaylistsPage component displays all user playlists in a grid layout
+ * @returns {JSX.Element} Playlists page component
+ */
 export default function PlaylistsPage() {
   const [playlists, setPlaylists] = useState([])
   const [loading, setLoading] = useState(true)
