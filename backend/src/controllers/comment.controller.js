@@ -1,5 +1,7 @@
 import mongoose from "mongoose"
 import { Comment } from "../models/comment.model.js"
+import { Video } from "../models/video.model.js"
+import { Notification } from "../models/notification.model.js"
 import ApiError from "../utils/ApiError.js";
 import {ApiResponse} from "../utils/ApiResponce.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
@@ -51,6 +53,27 @@ const addComment = asyncHandler(async (req, res) => {
     })
 
     await newComment.populate("owner", "username avatar");
+
+    // Notification Logic
+    try {
+        const video = await Video.findById(videoId);
+        if (video && video.owner.toString() !== req.user._id.toString()) {
+            const notification = await Notification.create({
+                recipient: video.owner,
+                sender: req.user._id,
+                type: 'COMMENT',
+                message: `${req.user.username} commented on your video "${video.title}"`,
+                url: `/video/${videoId}`
+            });
+
+            // Emit socket event
+            if (req.io) {
+                req.io.to(video.owner.toString()).emit('new-notification', notification);
+            }
+        }
+    } catch (error) {
+        console.error("Error sending notification for comment:", error);
+    }
 
     return res
         .status(201)
