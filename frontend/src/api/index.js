@@ -118,3 +118,11 @@ export const addVideoToPlaylist = (playlistId, videoId) => API.patch(`/playlists
 export const removeVideoFromPlaylist = (playlistId, videoId) => API.patch(`/playlists/${playlistId}/remove/${videoId}`); // Remove video
 export const deletePlaylist = (playlistId) => API.delete(`/playlists/${playlistId}`); // Delete
 export const updatePlaylist = (playlistId, data) => API.put(`/playlists/${playlistId}`, data); // Update name/description
+
+//
+// NOTIFICATION APIs
+//
+export const getNotifications = () => API.get("/notifications");
+export const markNotificationAsRead = (notificationId) => API.patch(`/notifications/${notificationId}`);
+export const markAllNotificationsAsRead = () => API.patch("/notifications/mark-all-read");
+export const deleteNotification = (notificationId) => API.delete(`/notifications/${notificationId}`);

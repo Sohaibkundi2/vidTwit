@@ -1,6 +1,7 @@
 import mongoose, { isValidObjectId } from 'mongoose'
 import { User } from '../models/user.model.js'
 import { Subscription } from '../models/subscription.model.js'
+import { Notification } from '../models/notification.model.js'
 import  ApiError  from '../utils/ApiError.js'
 import { ApiResponse } from '../utils/ApiResponce.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
@@ -37,6 +38,24 @@ const toggleSubscription = asyncHandler(async (req, res) => {
       subscriber: userId,
     })
     message = 'subscribed successfully'
+
+    // Notification Logic
+    try {
+        const notification = await Notification.create({
+            recipient: channelId,
+            sender: req.user._id,
+            type: 'SUBSCRIBE',
+            message: `${req.user.username} subscribed to your channel`,
+            url: `/c/${req.user.username}`
+        });
+
+        // Emit socket event
+        if (req.io) {
+            req.io.to(channelId.toString()).emit('new-notification', notification);
+        }
+    } catch (error) {
+        console.error("Error sending notification for subscription:", error);
+    }
   }
 
   return res.status(200).json(new ApiResponse(200, null, message))
