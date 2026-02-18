@@ -46,18 +46,17 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
   }
 
   const playlists = await Playlist.find({ owner: userId })
-    .populate("videos", "title thumbnailUrl")
+    .populate("videos", "title thumbnail duration description owner")
     .populate("owner", "username avatar email")
     .sort({ createdAt: -1 })
 
-  if (!playlists.length) {
-    return res.status(404).json(
-      new ApiResponse(404, null, "No playlists found")
-    )
-  }
-
+  // FIX: Return 200 with empty array, not 404
   return res.status(200).json(
-    new ApiResponse(200, playlists, "Playlists retrieved successfully")
+    new ApiResponse(
+      200, 
+      playlists, 
+      playlists.length > 0 ? "Playlists retrieved successfully" : "No playlists found"
+    )
   )
 })
 
@@ -69,7 +68,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
   }
 
   const playlist = await Playlist.findById(playlistId)
-    .populate("videos", "title thumbnailUrl")
+    .populate("videos", "title thumbnail duration description")
     .populate("owner", "username avatar email")
 
   if (!playlist) {
