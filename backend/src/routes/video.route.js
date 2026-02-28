@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { checkOwnership } from "../middlewares/checkOwnership.js";
+import { Video } from "../models/video.model.js";
 import {
   getAllVideos,
   publishAVideo,
@@ -30,12 +32,23 @@ router.post(
 router.put(
   "/:videoId",
   verifyJWT,
-  upload.single("thumbnail"), 
+  checkOwnership(Video, "videoId"),
+  upload.single("thumbnail"),
   updateVideo
 );
 
-router.delete("/:videoId", verifyJWT, deleteVideo);
+router.delete(
+  "/:videoId",
+  verifyJWT,
+  checkOwnership(Video, "videoId"),
+  deleteVideo
+);
 
-router.patch("/:videoId/toggle", verifyJWT, togglePublishStatus);
+router.patch(
+  "/:videoId/toggle",
+  verifyJWT,
+  checkOwnership(Video, "videoId"),
+  togglePublishStatus
+);
 
 export default router;
