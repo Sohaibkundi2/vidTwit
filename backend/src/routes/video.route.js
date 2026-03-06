@@ -4,6 +4,7 @@ import { checkOwnership } from "../middlewares/checkOwnership.js";
 import { Video } from "../models/video.model.js";
 import {
   getAllVideos,
+  getTrendingVideos,
   publishAVideo,
   getVideoById,
   updateVideo,
@@ -16,6 +17,8 @@ import  upload  from "../middlewares/multer.middleware.js";
 const router = Router();
 
 router.get("/", getAllVideos);
+
+router.get("/trending", getTrendingVideos);
 
 router.get("/:videoId", getVideoById);
 
