@@ -3,6 +3,8 @@ import {
   registerUser,
   logoutUser,
   loginUser,
+  verifyRegistrationOtp,
+  resendRegistrationOtp,
   generateAccessRefreshToken,
   changeCurrentPassword,
   getCurrentUser,
@@ -33,6 +35,8 @@ router.route('/register').post(
 )
 
 router.route('/login').post(loginUser)
+router.route('/verify-registration-otp').post(verifyRegistrationOtp)
+router.route('/resend-registration-otp').post(resendRegistrationOtp)
 router.route('/refresh-token').post(generateAccessRefreshToken)
 
 // secure routes

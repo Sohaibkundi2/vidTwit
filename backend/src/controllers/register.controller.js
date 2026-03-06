@@ -2,6 +2,7 @@ import { asyncHandler } from '../utils/asyncHandler.js'
 import ApiError from './../utils/ApiError.js'
 import { User } from '../models/user.model.js'
 import fs from 'fs'
+import crypto from 'crypto'
 import {
   deleteFromCloudinary,
   uploadOnCloudinary,
@@ -9,20 +10,52 @@ import {
 import { ApiResponse } from '../utils/ApiResponce.js'
 import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
+import { sendRegistrationOtpEmail } from '../utils/email.js'
+
+const EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES = 10
+
+const hashOtp = otp => crypto.createHash('sha256').update(otp).digest('hex')
+
+const generateOtp = () => crypto.randomInt(100000, 1000000).toString()
+
+const removeLocalFile = filePath => {
+  if (filePath && fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath)
+  }
+}
+
+const sendRegistrationOtp = async user => {
+  const otp = generateOtp()
+
+  user.emailVerificationOtpHash = hashOtp(otp)
+  user.emailVerificationOtpExpiry = new Date(
+    Date.now() + EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES * 60 * 1000,
+  )
+
+  await user.save({ validateBeforeSave: false })
+
+  await sendRegistrationOtpEmail({
+    email: user.email,
+    fullName: user.fullName || user.username,
+    otp,
+    expiresInMinutes: EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES,
+  })
+}
 
 const registerUser = asyncHandler(async (req, res) => {
   const { username, fullName, email, password } = req.body || {}
 
   //validatiom
 
-  if (
-    [username, fullName, email, password].some(field => field?.trim() === '')
-  ) {
+  if ([username, fullName, email, password].some(field => !field || field.trim() === '')) {
     throw new ApiError(400, 'All fields are required')
   }
 
+  const normalizedUsername = username.trim().toLowerCase()
+  const normalizedEmail = email.trim().toLowerCase()
+
   const existUser = await User.findOne({
-    $or: [{ username }, { email }],
+    $or: [{ username: normalizedUsername }, { email: normalizedEmail }],
   })
 
   if (existUser) {
@@ -37,43 +70,53 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   let avatar
+  let coverImage = null
+  let createdUserRecord = null
+
   try {
     avatar = await uploadOnCloudinary(avatarLocalPath)
-    if (fs.existsSync(avatarLocalPath)) {
-      fs.unlinkSync(avatarLocalPath)
+
+    if (!avatar?.url) {
+      throw new ApiError(400, 'failed to upload avatar')
     }
   } catch (error) {
+    removeLocalFile(avatarLocalPath)
     console.log('Error while uploading avatar', error)
     throw new ApiError(400, 'failed to upload avatar')
   }
-  let coverImage
-  try {
-    coverImage = await uploadOnCloudinary(coverLocalPath)
-    if (fs.existsSync(coverLocalPath)) {
-      fs.unlinkSync(coverLocalPath)
+
+  if (coverLocalPath) {
+    try {
+      coverImage = await uploadOnCloudinary(coverLocalPath)
+
+      if (!coverImage?.url) {
+        throw new ApiError(400, 'failed to upload coverImage')
+      }
+    } catch (error) {
+      removeLocalFile(coverLocalPath)
+      console.log('Error while uploading coverImage', error)
+
+      if (avatar?.public_id) {
+        await deleteFromCloudinary(avatar.public_id)
+      }
+
+      throw new ApiError(400, 'failed to upload coverImage')
     }
-  } catch (error) {
-    console.log('Error while uploading coverImage', error)
-    throw new ApiError(400, 'failed to upload coverImage')
   }
 
-  // const avatar = await uploadOnCloudinary(avatarLocalPath)
-  // let coverImage = ""
-  // if(coverLocalPath){
-  //     coverImage = await uploadOnCloudinary(coverLocalPath);
-  // }
-
   try {
-    const user = await User.create({
-      username: username.toLowerCase(),
-      email,
+    createdUserRecord = await User.create({
+      username: normalizedUsername,
+      email: normalizedEmail,
       password,
-      fullName,
+      fullName: fullName.trim(),
       avatar: avatar?.url,
       coverImage: coverImage?.url || '',
     })
 
-    const createdUser = await User.findById(user._id).select(
+    await sendRegistrationOtp(createdUserRecord)
+
+    const createdUser = await User.findById(createdUserRecord._id).select(
       '-password -refreshToken',
     )
 
@@ -83,17 +126,33 @@ const registerUser = asyncHandler(async (req, res) => {
 
     res
       .status(201)
-      .json(new ApiResponse(201, createdUser, 'user created successfully'))
+      .json(
+        new ApiResponse(
+          201,
+          {
+            user: createdUser,
+            email: createdUser.email,
+            requiresEmailVerification: true,
+          },
+          'user created successfully. Please verify the OTP sent to your email',
+        ),
+      )
   } catch (error) {
     console.error('User creation failed:', error)
-    if (coverImage) {
+
+    if (createdUserRecord?._id) {
+      await User.findByIdAndDelete(createdUserRecord._id)
+    }
+
+    if (coverImage?.public_id) {
       await deleteFromCloudinary(coverImage.public_id)
     }
 
-    throw new ApiError(
-      500,
-      'something went wrong while registering the user and images were deleted',
-    )
+    if (avatar?.public_id) {
+      await deleteFromCloudinary(avatar.public_id)
+    }
+
+    throw new ApiError(error.statusCode || 500, error.message || 'something went wrong while registering the user')
   }
 })
 
@@ -126,9 +185,13 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Email and password are required')
   }
 
-  const user = await User.findOne({ email })
+  const user = await User.findOne({ email: email.trim().toLowerCase() })
   if (!user) {
     throw new ApiError(401, 'User does not exist')
+  }
+
+  if (!user.isEmailVerified) {
+    throw new ApiError(403, 'Please verify your email before logging in')
   }
 
   const isPasswordValid = await user.isPasswordCorrect(password)
@@ -161,6 +224,92 @@ const loginUser = asyncHandler(async (req, res) => {
         200,
         { user: loggedInUser, accessToken, refreshToken },
         'User logged in successfully',
+      ),
+    )
+})
+
+const verifyRegistrationOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body || {}
+
+  if ([email, otp].some(field => !field || field.trim() === '')) {
+    throw new ApiError(400, 'Email and OTP are required')
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    '+emailVerificationOtpHash +emailVerificationOtpExpiry',
+  )
+
+  if (!user) {
+    throw new ApiError(404, 'User does not exist')
+  }
+
+  if (user.isEmailVerified) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { email: user.email }, 'Email is already verified'))
+  }
+
+  if (!user.emailVerificationOtpHash || !user.emailVerificationOtpExpiry) {
+    throw new ApiError(400, 'No OTP found. Please request a new one')
+  }
+
+  if (user.emailVerificationOtpExpiry.getTime() < Date.now()) {
+    throw new ApiError(400, 'OTP has expired. Please request a new one')
+  }
+
+  if (hashOtp(otp.trim()) !== user.emailVerificationOtpHash) {
+    throw new ApiError(400, 'Invalid OTP')
+  }
+
+  user.isEmailVerified = true
+  user.emailVerificationOtpHash = undefined
+  user.emailVerificationOtpExpiry = undefined
+
+  await user.save({ validateBeforeSave: false })
+
+  const verifiedUser = await User.findById(user._id).select('-password -refreshToken')
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        verifiedUser,
+        'Email verified successfully. You can now log in',
+      ),
+    )
+})
+
+const resendRegistrationOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body || {}
+
+  if (!email || email.trim() === '') {
+    throw new ApiError(400, 'Email is required')
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    '+emailVerificationOtpHash +emailVerificationOtpExpiry',
+  )
+
+  if (!user) {
+    throw new ApiError(404, 'User does not exist')
+  }
+
+  if (user.isEmailVerified) {
+    throw new ApiError(400, 'Email is already verified')
+  }
+
+  await sendRegistrationOtp(user)
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { email: user.email },
+        'A new OTP has been sent to your email',
       ),
     )
 })
@@ -503,6 +652,8 @@ const getWatchHistory = asyncHandler(async (req, res) => {
 export {
   registerUser,
   loginUser,
+  verifyRegistrationOtp,
+  resendRegistrationOtp,
   generateAccessRefreshToken,
   logoutUser,
   changeCurrentPassword,

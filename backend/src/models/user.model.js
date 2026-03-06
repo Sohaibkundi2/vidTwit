@@ -18,6 +18,18 @@ const userSchema = new Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationOtpHash: {
+      type: String,
+      select: false,
+    },
+    emailVerificationOtpExpiry: {
+      type: Date,
+      select: false,
+    },
     fullName: {
       type: String,
     },
