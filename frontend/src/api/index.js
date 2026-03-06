@@ -78,6 +78,7 @@ export const deleteTweet = (tweetId) => API.delete(`/tweets/${tweetId}`); //Done
 //
 export const createVideo = (formData) => API.post("/videos/publish", formData); //Done
 export const getAllVideos = () => API.get("/videos"); //Done
+export const getTrendingVideos = (range = "week") => API.get(`/videos/trending?range=${range}`);
 export const getVideoById = (videoId) => API.get(`/videos/${videoId}`); //Done
 export const deleteVideo = (videoId) => API.delete(`/videos/${videoId}`); // Done
 export const updateVideo = (videoId,formData) => API.put(`/videos/${videoId}`, formData); //Done
