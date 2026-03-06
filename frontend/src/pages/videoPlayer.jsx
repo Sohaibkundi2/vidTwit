@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom"
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import AddToPlaylistModal from "../compunents/AddToPlaylistModal";
+import WatchLaterButton from "../compunents/WatchLaterButton";
 
 dayjs.extend(relativeTime);
 
@@ -276,8 +277,17 @@ export default function VideoPlayerPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                   </svg>
-                  Save
+                  Add to Playlist
                 </button>
+
+                <WatchLaterButton
+                  video={video}
+                  onSuccess={setMessage}
+                  showLabel={true}
+                  className="flex items-center gap-2 rounded-full px-6 py-2.5 font-medium transition-all transform hover:scale-105"
+                  savedClassName="bg-blue-500 text-white shadow-lg shadow-blue-900/30"
+                  unsavedClassName="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/30"
+                />
 
                 <button
                   onClick={() => {

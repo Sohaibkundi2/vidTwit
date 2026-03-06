@@ -5,14 +5,17 @@ import App from './App.jsx'
 import './index.css'
 import { AuthProvider } from './context/authContext'
 import { SocketProvider } from './context/SocketContext'
+import { WatchLaterProvider } from './context/watchLaterContext'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <SocketProvider>
-          <App />
-        </SocketProvider>
+        <WatchLaterProvider>
+          <SocketProvider>
+            <App />
+          </SocketProvider>
+        </WatchLaterProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

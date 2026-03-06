@@ -7,6 +7,12 @@ import { asyncHandler } from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import fs from 'fs'
 
+const attachWatchLaterState = (videos, watchLaterIds) =>
+  videos.map(video => ({
+    ...video,
+    isInWatchLater: watchLaterIds.has(video._id.toString()),
+  }))
+
 const getAllVideos = asyncHandler(async (req, res) => {
   const {
     page = 1,
@@ -81,13 +87,17 @@ const getAllVideos = asyncHandler(async (req, res) => {
 
   // 7. Execute paginated aggregation
   const result = await Video.aggregatePaginate(aggregate, options)
+  const watchLaterIds = new Set(
+    (req.user?.watchLater || []).map(id => id.toString()),
+  )
+  const videosWithSaveState = attachWatchLaterState(result.docs, watchLaterIds)
 
   // 8. Respond with structured result
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        videos: result.docs,
+        videos: videosWithSaveState,
         totalCount: result.totalDocs,
         totalPages: result.totalPages,
         page: result.page,
@@ -154,42 +164,151 @@ const publishAVideo = asyncHandler(async (req, res) => {
 })
 
 const getVideoById = asyncHandler(async (req, res) => {
-  const { videoId } = req.params;
+  const { videoId } = req.params
 
   if (!mongoose.Types.ObjectId.isValid(videoId)) {
-    throw new ApiError(400, 'Invalid video ID');
+    throw new ApiError(400, 'Invalid video ID')
   }
 
   const video = await Video.findById(videoId).populate(
     'owner',
     'username fullName avatar',
-  );
+  )
 
   if (!video) {
-    throw new ApiError(404, 'Video not found');
+    throw new ApiError(404, 'Video not found')
   }
 
   // ✅ If user is logged in
   if (req.user) {
     const alreadyViewed = video.viewedBy.some(
       (id) => id.toString() === req.user._id.toString()
-    );
+    )
 
     if (!alreadyViewed) {
-      video.views += 1;
-      video.viewedBy.push(req.user._id);
-      await video.save({ validateBeforeSave: false }); // skip validations for speed
+      video.views += 1
+      video.viewedBy.push(req.user._id)
+      await video.save({ validateBeforeSave: false })
     }
   } else {
     // ✅ If user is not logged in, still increase view count
-    video.views += 1;
-    await video.save({ validateBeforeSave: false });
+    video.views += 1
+    await video.save({ validateBeforeSave: false })
   }
+
+  const videoResponse = video.toObject()
+  const watchLaterIds = new Set(
+    (req.user?.watchLater || []).map(id => id.toString()),
+  )
+  videoResponse.isInWatchLater = watchLaterIds.has(video._id.toString())
 
   return res
     .status(200)
-    .json(new ApiResponse(200, video, 'Video fetched successfully'));
-});
+    .json(new ApiResponse(200, videoResponse, 'Video fetched successfully'))
+})
+
+const getWatchLaterVideos = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('watchLater')
+
+  if (!user) {
+    throw new ApiError(404, 'User not found')
+  }
+
+  if (!user.watchLater.length) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, [], 'No saved videos in watch later'))
+  }
+
+  const savedVideos = await Video.find({
+    _id: { $in: user.watchLater },
+    isPublished: true,
+  })
+    .populate('owner', 'username fullName avatar')
+    .lean()
+
+  const savedVideoOrder = new Map(
+    user.watchLater.map((videoId, index) => [videoId.toString(), index]),
+  )
+
+  const orderedSavedVideos = savedVideos
+    .sort(
+      (firstVideo, secondVideo) =>
+        savedVideoOrder.get(firstVideo._id.toString()) -
+        savedVideoOrder.get(secondVideo._id.toString()),
+    )
+    .map(video => ({
+      ...video,
+      isInWatchLater: true,
+    }))
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        orderedSavedVideos,
+        'Watch later videos fetched successfully',
+      ),
+    )
+})
+
+const addToWatchLater = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, 'Invalid video ID')
+  }
+
+  const video = await Video.findById(videoId).select('_id isPublished owner')
+
+  if (!video) {
+    throw new ApiError(404, 'Video not found')
+  }
+
+  if (!video.isPublished && video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'You are not allowed to save this video')
+  }
+
+  await User.findByIdAndUpdate(req.user._id, {
+    $pull: { watchLater: video._id },
+  })
+
+  await User.findByIdAndUpdate(req.user._id, {
+    $push: {
+      watchLater: {
+        $each: [video._id],
+        $position: 0,
+      },
+    },
+  })
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { videoId, isInWatchLater: true }, 'Video added to watch later'))
+})
+
+const removeFromWatchLater = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, 'Invalid video ID')
+  }
+
+  await User.findByIdAndUpdate(req.user._id, {
+    $pull: { watchLater: videoId },
+  })
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { videoId, isInWatchLater: false },
+        'Video removed from watch later',
+      ),
+    )
+})
 
 
 const updateVideo = asyncHandler(async (req, res) => {
@@ -250,6 +369,17 @@ const deleteVideo = asyncHandler(async (req, res) => {
   }
 
   await video.deleteOne()
+  await User.updateMany(
+    {
+      $or: [{ watchLater: video._id }, { watchHistory: video._id }],
+    },
+    {
+      $pull: {
+        watchLater: video._id,
+        watchHistory: video._id,
+      },
+    },
+  )
 
   return res
     .status(200)
@@ -293,6 +423,9 @@ export {
   getAllVideos,
   publishAVideo,
   getVideoById,
+  getWatchLaterVideos,
+  addToWatchLater,
+  removeFromWatchLater,
   updateVideo,
   deleteVideo,
   togglePublishStatus,
