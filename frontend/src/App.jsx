@@ -22,6 +22,7 @@ import PlaylistsPage from './pages/PlaylistsPage'
 import PlaylistDetailPage from './pages/PlaylistDetailPage'
 import CreatePlaylistPage from './pages/CreatePlaylistPage'
 import EditPlaylistPage from './pages/EditPlaylistPage'
+import WatchLaterPage from './pages/WatchLaterPage'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -61,6 +62,9 @@ function App() {
         <Route path="/tweet/:tweetId" element={<TweetPage />} />
         <Route path="/tweets" element={<TweetPage />} />
         <Route path="/playlists" element={<PlaylistsPage />} />
+        <Route path="/watch-later" element={<ProtectedRoute />}>
+          <Route index element={<WatchLaterPage />} />
+        </Route>
         <Route path="/playlist/:playlistId" element={<PlaylistDetailPage />} />
 
         {/* Secure routes */}

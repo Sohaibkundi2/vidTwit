@@ -1,7 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import WatchLaterButton from "./WatchLaterButton";
+import { useWatchLater } from "../context/watchLaterContext";
 
 export default function VideoCard({ video }) {
+  const { isInWatchLater } = useWatchLater();
   const thumbnail = video?.thumbnail;
   const videoUrl = video?.videoFile;
   const videoId = video?._id;
@@ -9,6 +12,7 @@ export default function VideoCard({ video }) {
   const channel = video?.owner?.username;
   const views = video?.views || 0;
   const duration = video?.duration;
+  const saved = isInWatchLater(video?._id) || video?.isInWatchLater;
 
   const isDesktop = () => window.innerWidth >= 1024;
 
@@ -49,6 +53,13 @@ const formatDuration = (seconds) => {
         />
       )}
 
+      <WatchLaterButton
+        video={video}
+        className="absolute left-3 top-3 z-10 inline-flex items-center justify-center rounded-full border border-white/15 p-2 backdrop-blur transition hover:-translate-y-0.5"
+        savedClassName="bg-blue-500 text-white"
+        unsavedClassName="bg-black/70 text-white hover:bg-blue-600"
+      />
+
       {/* Duration Overlay */}
       {duration && (
         <span className="absolute top-50 right-3 bg-gray-900 bg-opacity-70 text-white text-xs px-1.5 py-0.5 rounded">
@@ -58,7 +69,14 @@ const formatDuration = (seconds) => {
 
       {/* Info Section */}
       <div className="p-3">
-        <h3 className="text-white font-semibold truncate">{title}</h3>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-white font-semibold truncate">{title}</h3>
+          {saved && (
+            <span className="rounded-full bg-blue-500/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-blue-300">
+              Saved
+            </span>
+          )}
+        </div>
         <p className="text-gray-400 text-sm">{channel}</p>
         <p className="text-gray-500 text-xs">{views} views</p>
       </div>

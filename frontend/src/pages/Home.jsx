@@ -249,6 +249,21 @@ export default function Home() {
                   </Link>
 
                   <Link
+                    to="/watch-later"
+                    className="flex items-center gap-3 p-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg transition-all group"
+                  >
+                    <div className="p-2 bg-blue-600 rounded-lg group-hover:scale-110 transition-transform">
+                      <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 4.75A1.75 1.75 0 017.75 3h8.5A1.75 1.75 0 0118 4.75v16.19a.75.75 0 01-1.09.67L12 19.13l-4.91 2.48A.75.75 0 016 20.94V4.75z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-white">Watch Later</p>
+                      <p className="text-xs text-gray-400">Save videos for later</p>
+                    </div>
+                  </Link>
+
+                  <Link
                     to="/playlists"
                     className="flex items-center gap-3 p-3 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-all group"
                   >

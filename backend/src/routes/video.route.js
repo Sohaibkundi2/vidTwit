@@ -1,11 +1,14 @@
 import { Router } from "express";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { optionalVerifyJWT, verifyJWT } from "../middlewares/auth.middleware.js";
 import { checkOwnership } from "../middlewares/checkOwnership.js";
 import { Video } from "../models/video.model.js";
 import {
   getAllVideos,
   publishAVideo,
   getVideoById,
+  getWatchLaterVideos,
+  addToWatchLater,
+  removeFromWatchLater,
   updateVideo,
   deleteVideo,
   togglePublishStatus,
@@ -15,9 +18,15 @@ import  upload  from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.get("/", getAllVideos);
+router.get("/", optionalVerifyJWT, getAllVideos);
 
-router.get("/:videoId", getVideoById);
+router.get("/watch-later", verifyJWT, getWatchLaterVideos);
+
+router.post("/:videoId/watch-later", verifyJWT, addToWatchLater);
+
+router.delete("/:videoId/watch-later", verifyJWT, removeFromWatchLater);
+
+router.get("/:videoId", optionalVerifyJWT, getVideoById);
 
 router.post(
   "/publish",
