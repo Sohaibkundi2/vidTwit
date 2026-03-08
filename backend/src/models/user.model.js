@@ -54,6 +54,12 @@ const userSchema = new Schema(
         ref: 'Video',
       },
     ],
+    watchLater: [
+      {
+        type: mongoose.Types.ObjectId,
+        ref: 'Video',
+      },
+    ],
     role: {
       type: String,
       enum: ['user', 'admin'],
