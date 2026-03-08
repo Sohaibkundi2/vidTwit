@@ -7,6 +7,7 @@ import {
   getTrendingVideos,
   publishAVideo,
   getVideoById,
+  toggleVideoRepost,
   getWatchLaterVideos,
   addToWatchLater,
   removeFromWatchLater,
@@ -21,10 +22,11 @@ const router = Router();
 
 router.get("/", optionalVerifyJWT, getAllVideos);
 
-router.get("/trending", getTrendingVideos);
+router.get("/trending", optionalVerifyJWT, getTrendingVideos);
 
-router.get("/:videoId", getVideoById);
 router.get("/watch-later", verifyJWT, getWatchLaterVideos);
+
+router.post("/:videoId/repost-toggle", verifyJWT, toggleVideoRepost);
 
 router.post("/:videoId/watch-later", verifyJWT, addToWatchLater);
 

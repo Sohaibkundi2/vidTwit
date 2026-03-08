@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import AddToPlaylistModal from "../compunents/AddToPlaylistModal";
 import WatchLaterButton from "../compunents/WatchLaterButton";
+import RepostButton from "../compunents/RepostButton";
 
 dayjs.extend(relativeTime);
 
@@ -287,6 +288,16 @@ export default function VideoPlayerPage() {
                   className="flex items-center gap-2 rounded-full px-6 py-2.5 font-medium transition-all transform hover:scale-105"
                   savedClassName="bg-blue-500 text-white shadow-lg shadow-blue-900/30"
                   unsavedClassName="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/30"
+                />
+
+                <RepostButton
+                  contentType="video"
+                  item={video}
+                  onMessage={setMessage}
+                  showLabel={true}
+                  className="flex items-center gap-2 rounded-full px-6 py-2.5 font-medium transition-all transform hover:scale-105"
+                  activeClassName="bg-indigo-500 text-white shadow-lg shadow-indigo-900/30"
+                  inactiveClassName="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-900/30"
                 />
 
                 <button

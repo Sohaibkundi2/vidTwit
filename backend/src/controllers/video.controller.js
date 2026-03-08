@@ -3,6 +3,7 @@ import { Video } from '../models/video.model.js'
 import { User } from '../models/user.model.js'
 import { Like } from '../models/like.model.js'
 import { Comment } from '../models/comment.model.js'
+import { Repost } from '../models/repost.model.js'
 import ApiError from '../utils/ApiError.js'
 import { ApiResponse } from '../utils/ApiResponce.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
@@ -23,6 +24,50 @@ const attachWatchLaterState = (videos, watchLaterIds) =>
     ...video,
     isInWatchLater: watchLaterIds.has(video._id.toString()),
   }))
+
+const attachVideoRepostState = async (videos, userId) => {
+  if (!videos.length) {
+    return videos
+  }
+
+  const videoIds = videos.map(video => video._id)
+  const repostCounts = await Repost.aggregate([
+    {
+      $match: {
+        video: { $in: videoIds },
+      },
+    },
+    {
+      $group: {
+        _id: '$video',
+        repostCount: { $sum: 1 },
+      },
+    },
+  ])
+
+  const repostCountMap = new Map(
+    repostCounts.map(item => [item._id.toString(), item.repostCount]),
+  )
+
+  let repostedVideoIds = new Set()
+
+  if (userId) {
+    const userReposts = await Repost.find({
+      repostedBy: userId,
+      video: { $in: videoIds },
+    }).select('video')
+
+    repostedVideoIds = new Set(
+      userReposts.map(repost => repost.video.toString()),
+    )
+  }
+
+  return videos.map(video => ({
+    ...video,
+    repostCount: repostCountMap.get(video._id.toString()) || 0,
+    isReposted: repostedVideoIds.has(video._id.toString()),
+  }))
+}
 
 const getAllVideos = asyncHandler(async (req, res) => {
   const {
@@ -102,13 +147,17 @@ const getAllVideos = asyncHandler(async (req, res) => {
     (req.user?.watchLater || []).map(id => id.toString()),
   )
   const videosWithSaveState = attachWatchLaterState(result.docs, watchLaterIds)
+  const videosWithEngagementState = await attachVideoRepostState(
+    videosWithSaveState,
+    req.user?._id,
+  )
 
   // 8. Respond with structured result
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        videos: videosWithSaveState,
+        videos: videosWithEngagementState,
         totalCount: result.totalDocs,
         totalPages: result.totalPages,
         page: result.page,
@@ -248,7 +297,7 @@ const getTrendingVideos = asyncHandler(async (req, res) => {
       200,
       {
         range: selectedRange,
-        videos: trendingVideos,
+        videos: await attachVideoRepostState(trendingVideos, req.user?._id),
       },
       'Trending videos fetched successfully',
     ),
@@ -348,10 +397,64 @@ const getVideoById = asyncHandler(async (req, res) => {
     (req.user?.watchLater || []).map(id => id.toString()),
   )
   videoResponse.isInWatchLater = watchLaterIds.has(video._id.toString())
+  videoResponse.repostCount = await Repost.countDocuments({ video: video._id })
+  videoResponse.isReposted = req.user
+    ? Boolean(
+        await Repost.exists({
+          repostedBy: req.user._id,
+          video: video._id,
+        }),
+      )
+    : false
 
   return res
     .status(200)
     .json(new ApiResponse(200, videoResponse, 'Video fetched successfully'))
+})
+
+const toggleVideoRepost = asyncHandler(async (req, res) => {
+  const { videoId } = req.params
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, 'Invalid video ID')
+  }
+
+  const video = await Video.findById(videoId).select('_id owner isPublished')
+
+  if (!video) {
+    throw new ApiError(404, 'Video not found')
+  }
+
+  if (!video.isPublished && video.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, 'You are not allowed to repost this video')
+  }
+
+  const existingRepost = await Repost.findOne({
+    repostedBy: req.user._id,
+    video: video._id,
+  })
+
+  let isReposted = false
+
+  if (existingRepost) {
+    await existingRepost.deleteOne()
+  } else {
+    await Repost.create({
+      repostedBy: req.user._id,
+      video: video._id,
+    })
+    isReposted = true
+  }
+
+  const repostCount = await Repost.countDocuments({ video: video._id })
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { videoId, isReposted, repostCount },
+      isReposted ? 'Video reposted successfully' : 'Video repost removed successfully',
+    ),
+  )
 })
 
 const getWatchLaterVideos = asyncHandler(async (req, res) => {
@@ -389,12 +492,17 @@ const getWatchLaterVideos = asyncHandler(async (req, res) => {
       isInWatchLater: true,
     }))
 
+  const savedVideosWithRepostState = await attachVideoRepostState(
+    orderedSavedVideos,
+    req.user?._id,
+  )
+
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        orderedSavedVideos,
+        savedVideosWithRepostState,
         'Watch later videos fetched successfully',
       ),
     )
@@ -527,6 +635,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
       },
     },
   )
+  await Repost.deleteMany({ video: video._id })
 
   return res
     .status(200)
@@ -571,6 +680,7 @@ export {
   getTrendingVideos,
   publishAVideo,
   getVideoById,
+  toggleVideoRepost,
   getWatchLaterVideos,
   addToWatchLater,
   removeFromWatchLater,

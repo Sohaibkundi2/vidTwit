@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import WatchLaterButton from "./WatchLaterButton";
+import RepostButton from "./RepostButton";
 import { useWatchLater } from "../context/watchLaterContext";
 
 export default function VideoCard({ video }) {
@@ -88,7 +89,16 @@ const formatDuration = (seconds) => {
           )}
         </div>
         <p className="text-gray-400 text-sm">{channel}</p>
-        <p className="text-gray-500 text-xs">{views} views</p>
+        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500">
+          <span>{views} views</span>
+          <RepostButton
+            contentType="video"
+            item={video}
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition"
+            activeClassName="bg-blue-500/15 text-blue-300"
+            inactiveClassName="bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+          />
+        </div>
       </div>
     </Link>
   );

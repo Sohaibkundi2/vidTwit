@@ -70,6 +70,8 @@ export const getWatchHistory = () => API.get("/users/history"); //Done
 //
 export const createTweet = (data) => API.post("/tweets", data); //Done
 export const getTweets = () => API.get("/tweets"); //Done
+export const getTweetById = (tweetId) => API.get(`/tweets/detail/${tweetId}`);
+export const toggleTweetRepost = (tweetId) => API.post(`/tweets/${tweetId}/repost-toggle`);
 export const updateTweet = (tweetId, data) => API.put(`/tweets/${tweetId}`, data); //Done
 export const deleteTweet = (tweetId) => API.delete(`/tweets/${tweetId}`); //Done
 
@@ -81,6 +83,7 @@ export const getAllVideos = () => API.get("/videos"); //Done
 export const getTrendingVideos = (range = "week") => API.get(`/videos/trending?range=${range}`);
 export const getWatchLaterVideos = () => API.get("/videos/watch-later");
 export const getVideoById = (videoId) => API.get(`/videos/${videoId}`); //Done
+export const toggleVideoRepost = (videoId) => API.post(`/videos/${videoId}/repost-toggle`);
 export const addToWatchLater = (videoId) => API.post(`/videos/${videoId}/watch-later`);
 export const removeFromWatchLater = (videoId) => API.delete(`/videos/${videoId}/watch-later`);
 export const deleteVideo = (videoId) => API.delete(`/videos/${videoId}`); // Done
