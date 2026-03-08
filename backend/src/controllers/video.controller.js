@@ -1,12 +1,23 @@
 import mongoose, { isValidObjectId } from 'mongoose'
 import { Video } from '../models/video.model.js'
 import { User } from '../models/user.model.js'
+import { Like } from '../models/like.model.js'
+import { Comment } from '../models/comment.model.js'
 import ApiError from '../utils/ApiError.js'
 import { ApiResponse } from '../utils/ApiResponce.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js'
 import fs from 'fs'
 
+const TRENDING_RANGES = {
+  day: 1,
+  week: 7,
+}
+
+const getTrendingStartDate = range => {
+  const days = TRENDING_RANGES[range] || TRENDING_RANGES.week
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+}
 const attachWatchLaterState = (videos, watchLaterIds) =>
   videos.map(video => ({
     ...video,
@@ -104,6 +115,142 @@ const getAllVideos = asyncHandler(async (req, res) => {
         limit: result.limit,
       },
       'Videos fetched successfully',
+    ),
+  )
+})
+
+const getTrendingVideos = asyncHandler(async (req, res) => {
+  const { range = 'week', limit = 6 } = req.query
+  const selectedRange = TRENDING_RANGES[range] ? range : 'week'
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 6, 1), 20)
+  const startDate = getTrendingStartDate(selectedRange)
+
+  const trendingVideos = await Video.aggregate([
+    {
+      $match: {
+        isPublished: true,
+      },
+    },
+    {
+      $lookup: {
+        from: 'likes',
+        let: { videoId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$video', '$$videoId'] },
+              createdAt: { $gte: startDate },
+            },
+          },
+          {
+            $count: 'count',
+          },
+        ],
+        as: 'recentLikes',
+      },
+    },
+    {
+      $lookup: {
+        from: 'comments',
+        let: { videoId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $eq: ['$video', '$$videoId'] },
+              createdAt: { $gte: startDate },
+            },
+          },
+          {
+            $count: 'count',
+          },
+        ],
+        as: 'recentComments',
+      },
+    },
+    {
+      $addFields: {
+        likeCount: {
+          $ifNull: [{ $arrayElemAt: ['$recentLikes.count', 0] }, 0],
+        },
+        commentCount: {
+          $ifNull: [{ $arrayElemAt: ['$recentComments.count', 0] }, 0],
+        },
+        ageInHours: {
+          $dateDiff: {
+            startDate: '$createdAt',
+            endDate: '$$NOW',
+            unit: 'hour',
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        recencyBoost: {
+          $max: [0, { $subtract: [72, '$ageInHours'] }],
+        },
+        trendingScore: {
+          $add: [
+            '$views',
+            { $multiply: ['$likeCount', 4] },
+            { $multiply: ['$commentCount', 3] },
+            { $divide: [{ $max: [0, { $subtract: [72, '$ageInHours'] }] }, 3] },
+          ],
+        },
+      },
+    },
+    {
+      $sort: {
+        trendingScore: -1,
+        likeCount: -1,
+        commentCount: -1,
+        views: -1,
+        createdAt: -1,
+      },
+    },
+    {
+      $limit: parsedLimit,
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'owner',
+        foreignField: '_id',
+        as: 'owner',
+      },
+    },
+    {
+      $unwind: '$owner',
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        thumbnail: 1,
+        videoFile: 1,
+        duration: 1,
+        views: 1,
+        createdAt: 1,
+        likeCount: 1,
+        commentCount: 1,
+        trendingScore: { $round: ['$trendingScore', 1] },
+        owner: {
+          _id: '$owner._id',
+          username: '$owner.username',
+          avatar: '$owner.avatar',
+        },
+      },
+    },
+  ])
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        range: selectedRange,
+        videos: trendingVideos,
+      },
+      'Trending videos fetched successfully',
     ),
   )
 })
@@ -421,6 +568,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 
 export {
   getAllVideos,
+  getTrendingVideos,
   publishAVideo,
   getVideoById,
   getWatchLaterVideos,
