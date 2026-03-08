@@ -137,3 +137,11 @@ Frontend should start on `http://localhost:5173`
 - MERN Stack Developer | Backend-focused  
 - LinkedIn: [https://linkedin.com/in/sohaibkundi2](https://linkedin.com/in/sohaibkundi2)  
 - GitHub: [https://github.com/sohaibkundi2](https://github.com/sohaibkundi2)
+
+---
+
+## Contributors
+
+Thanks to all the amazing people who have contributed to this project!
+
+[![Contributors](https://contrib.rocks/image?repo=Sohaibkundi2/vidTwit)](https://github.com/Sohaibkundi2/vidTwit/graphs/contributors)
