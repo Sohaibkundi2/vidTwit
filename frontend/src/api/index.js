@@ -116,6 +116,7 @@ export const getChannelVideos = (channelId) => API.get(`/dashboard/videos/${chan
 export const toggleSubscription = (channelId) => API.post(`/subscriptions/${channelId}/toggle`); //Done
 export const getSubscribers = (channelId) => API.get(`/subscriptions/${channelId}/subscribers`);//Done
 export const getSubscribedChannels = (userId) => API.get(`/subscriptions/${userId}/subscriptions`); //Done
+export const getFollowingFeed = (params = {}) => API.get(`/subscriptions/feed`, { params });
 
 //
 //  PLAYLIST APIs
