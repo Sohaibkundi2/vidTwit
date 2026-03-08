@@ -45,21 +45,44 @@ const sendRegistrationOtp = async user => {
 const registerUser = asyncHandler(async (req, res) => {
   const { username, fullName, email, password } = req.body || {}
 
-  //validatiom
-
-  if ([username, fullName, email, password].some(field => !field || field.trim() === '')) {
-    throw new ApiError(400, 'All fields are required')
+  // Enhanced validation with sanitization
+  if (!username || typeof username !== 'string' || username.trim().length < 3) {
+    throw new ApiError(400, 'Username must be at least 3 characters long')
+  }
+  
+  if (!fullName || typeof fullName !== 'string' || fullName.trim().length < 2) {
+    throw new ApiError(400, 'Full name must be at least 2 characters long')
+  }
+  
+  if (!email || typeof email !== 'string') {
+    throw new ApiError(400, 'Valid email is required')
+  }
+  
+  // Email validation with regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email.trim())) {
+    throw new ApiError(400, 'Please provide a valid email address')
+  }
+  
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    throw new ApiError(400, 'Password must be at least 6 characters long')
   }
 
-  const normalizedUsername = username.trim().toLowerCase()
-  const normalizedEmail = email.trim().toLowerCase()
+  // Sanitize inputs
+  const sanitizedUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+  const sanitizedFullName = fullName.trim().replace(/<[^>]*>/g, '') // Remove HTML tags
+  const sanitizedEmail = email.trim().toLowerCase()
+
+  if (sanitizedUsername !== username.trim().toLowerCase()) {
+    throw new ApiError(400, 'Username can only contain letters, numbers, and underscores')
+  }
 
   const existUser = await User.findOne({
-    $or: [{ username: normalizedUsername }, { email: normalizedEmail }],
+    $or: [{ username: sanitizedUsername }, { email: sanitizedEmail }],
   })
 
   if (existUser) {
-    throw new ApiError(409, 'User with username or email is already exists')
+    throw new ApiError(409, 'User with username or email already exists')
   }
 
   const avatarLocalPath = req.files?.avatar?.[0]?.path

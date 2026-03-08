@@ -13,7 +13,10 @@ services:
     ports:
       - "27017:27017"
     volumes:
+
       - mongo_data:/data/db
+
+      - mongodb_data:/data/db
     networks:
       - vidtwit-network
 
@@ -25,7 +28,11 @@ services:
     container_name: vidtwit-backend
     restart: unless-stopped
     environment:
+
       NODE_ENV: development
+
+      NODE_ENV: production
+
       PORT: 3000
       MONGO_URI: mongodb://admin:password123@mongodb:27017/vidtwit?authSource=admin
       ACCESS_TOKEN_SECRET: your_super_secret_access_token_here
@@ -61,14 +68,20 @@ services:
     environment:
       VITE_BACKEND_URL: http://localhost:3000
     ports:
+
       - "5173:5173"
+
+      - "80:80"
     depends_on:
       - backend
     networks:
       - vidtwit-network
 
 volumes:
+
   mongo_data:
+
+  mongodb_data:
     driver: local
 
 networks:

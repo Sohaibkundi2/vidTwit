@@ -69,7 +69,7 @@ Create a `.env` file with the following keys:
 ```env
 PORT=3000
 
-MONGODB_URI=your_mongodb_connection_string
+MONGO_URI=your_mongodb_connection_string
 
 ACCESS_TOKEN_SECRET=your_jwt_secret
 ACCESS_TOKEN_EXPIRY=1d
@@ -80,6 +80,12 @@ MY_CLOUD_NAME=your_cloud_name
 MY_CLOUD_API_KEY=your_api_key
 MY_CLOUD_SECRET_KEY=your_api_secret
 
+# Email Service Configuration (Required for OTP functionality)
+EMAIL_HOST=your_smtp_host
+EMAIL_PORT=587
+EMAIL_USER=your_email_address
+EMAIL_PASS=your_email_password
+EMAIL_FROM=your_sender_email
 
 NODE_ENV=development
 ```

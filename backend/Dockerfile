@@ -1,4 +1,8 @@
+
 # Use Node.js 18 LTS Alpine for smaller image size
+
+# Use Node.js 18 LTS
+
 FROM node:18-alpine
 
 # Set working directory
@@ -13,9 +17,15 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
 
 # Change ownership of the app directory
 RUN chown -R nodejs:nodejs /app

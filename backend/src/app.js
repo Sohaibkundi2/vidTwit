@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { generalLimiter, authLimiter, otpLimiter, uploadLimiter } from './middlewares/rateLimiter.js';
 // import { socketAuth } from './middlewares/socket.middleware.js'; // Will import after defining
 
 const app = express()
@@ -50,6 +51,9 @@ app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 app.use("/Public", express.static(path.join(__dirname, "../Public")))
 app.use(cookieParser())
 
+// Apply rate limiting
+app.use(generalLimiter);
+
 // Import socket auth middleware dynamically or statically if file exists
 // Since I created it, I can import it.
 // But I need to make sure I import it at top or here.
@@ -78,7 +82,19 @@ import dashboardRoute from './routes/dashboard.route.js'
 import subscriptionRoute from './routes/subscription.route.js'
 import playlistRoute from "./routes/playlist.route.js"
 import notificationRoute from './routes/notification.route.js'
+import healthRoute from './routes/health.route.js'
 import errorHandler from './middlewares/errorHandler.js'
+
+// Apply rate limiting to specific routes
+app.use('/api/v1/users/register', authLimiter);
+app.use('/api/v1/users/login', authLimiter);
+app.use('/api/v1/users/verify-registration-otp', otpLimiter);
+app.use('/api/v1/users/resend-registration-otp', otpLimiter);
+app.use('/api/v1/videos/publish', uploadLimiter);
+app.use('/api/v1/tweets', uploadLimiter);
+
+// Health check route (no rate limiting)
+app.use('/api/v1', healthRoute);
 
 app.use('/api/v1/users', userRoute)
 app.use('/api/v1/tweets', tweetRoute)

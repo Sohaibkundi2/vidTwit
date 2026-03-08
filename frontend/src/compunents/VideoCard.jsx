@@ -1,10 +1,22 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import WatchLaterButton from "./WatchLaterButton";
 import { useWatchLater } from "../context/watchLaterContext";
 
 export default function VideoCard({ video }) {
   const { isInWatchLater } = useWatchLater();
+  const [isDesktop, setIsDesktop] = useState(false);
+  
+  useEffect(() => {
+    const checkIsDesktop = () => window.innerWidth >= 1024;
+    setIsDesktop(checkIsDesktop());
+    
+    const handleResize = () => setIsDesktop(checkIsDesktop());
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   const thumbnail = video?.thumbnail;
   const videoUrl = video?.videoFile;
   const videoId = video?._id;
@@ -13,8 +25,6 @@ export default function VideoCard({ video }) {
   const views = video?.views || 0;
   const duration = video?.duration;
   const saved = isInWatchLater(video?._id) || video?.isInWatchLater;
-
-  const isDesktop = () => window.innerWidth >= 1024;
 
   // Convert seconds to "mm:ss" format
 const formatDuration = (seconds) => {
@@ -31,7 +41,7 @@ const formatDuration = (seconds) => {
       className="block bg-gray-900 rounded-lg overflow-hidden hover:shadow-lg transition relative"
     >
       {/* Video or Thumbnail */}
-      {isDesktop() ? (
+      {isDesktop ? (
         <video
           src={videoUrl}
           poster={thumbnail}

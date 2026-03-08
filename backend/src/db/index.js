@@ -6,8 +6,15 @@ const connectDB = async ()=>{
         console.log(`\nMongoDB Connected : ${connectionInstance.connection.host}`);
         return connectionInstance;
     } catch (error) {
-        console.log('Error Occured While Connecting to DB', error)
-        process.exit(1)
+        console.error('Error Occurred While Connecting to DB:', error);
+        
+        // Graceful shutdown
+        setTimeout(() => {
+            console.log('Shutting down due to database connection failure...');
+            process.exit(1);
+        }, 5000);
+        
+        throw error;
     }
 }
 
