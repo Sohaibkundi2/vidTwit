@@ -93,92 +93,17 @@ NODE_ENV=development
 ### Frontend
 Create a `.env` file with the following keys:
 ```env
-VITE_BACKEND_URL=http://localhost:3000/api/v1
+VITE_API_URL =http://localhost:3000/api/v1
 ```
 
 ---
-
-## Run Locally
-
-### Docker Setup (Recommended)
-
-The easiest way to get VidTwit running locally is with Docker. This ensures all services work together without manual setup.
-
-**Prerequisites:**
-- Docker Desktop installed and running
-- Git repository cloned locally
-
-**Quick Start:**
-```bash
-# Clone the repository
-git clone https://github.com/vallabhatech/vidTwit.git
-cd vidTwit
-
-# Start all services (builds containers if needed)
-docker-compose up --build
-
-# Stop all services
-docker-compose down
-```
-
-**Access Points:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:3000
-- Database: mongodb://localhost:27017
-
-**Features:**
-- ✅ Database persists automatically across restarts
-- ✅ Hot-reloading enabled for frontend development
-- ✅ All environment variables pre-configured
-- ✅ Services communicate via dedicated Docker network
-
-**Configuration:**
-Edit `docker-compose.yml` to customize:
-- Database credentials
-- Cloudinary settings
-- Email service configuration
-
-### Backend
-```bash
-# Clone repo
-git clone https://github.com/sohaibkundi2/myTube.git
-cd vidtwit/backend
-
-# Install dependencies
-npm install
-
-# Setup .env file (see above)
-
-# Run the server
-npm run dev
-```
-
-Server should start on `http://localhost:3000`
-
-### Frontend
-```bash
-cd ../frontend
-
-# Install dependencies
-npm install
-
-# Setup .env file (see above)
-
-# Run the frontend
-npm run dev
-```
-
-Frontend should start on `http://localhost:5173`
-
----
-
 
 ---
 
 ## Author
 
 **Muhammad Sohaib**  
-- BSCS, 4th Semester — Tank Campus GU 
+- BSCS — Tank Campus GU 
 - MERN Stack Developer | Backend-focused  
 - LinkedIn: [https://linkedin.com/in/sohaibkundi2](https://linkedin.com/in/sohaibkundi2)  
 - GitHub: [https://github.com/sohaibkundi2](https://github.com/sohaibkundi2)

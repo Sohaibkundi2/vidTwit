@@ -13,10 +13,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-
-      - mongo_data:/data/db
-
-      - mongodb_data:/data/db
+      - moongo_data:/data/db
     networks:
       - vidtwit-network
 
@@ -29,9 +26,8 @@ services:
     restart: unless-stopped
     environment:
 
-      NODE_ENV: development
 
-      NODE_ENV: production
+      NODE_ENV: development
 
       PORT: 3000
       MONGO_URI: mongodb://admin:password123@mongodb:27017/vidtwit?authSource=admin
@@ -71,7 +67,6 @@ services:
 
       - "5173:5173"
 
-      - "80:80"
     depends_on:
       - backend
     networks:
