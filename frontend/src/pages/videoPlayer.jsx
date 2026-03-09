@@ -20,6 +20,7 @@ import {
   getSubscribers,
   deleteComment,
   updateComment,
+  toggleCommentLike,
 } from "../api"
 
 
@@ -172,6 +173,34 @@ export default function VideoPlayerPage() {
     } catch (err) {
       console.error("Delete failed", err);
       setMessage("Failed to delete comment");
+    }
+  };
+
+  const handleToggleCommentLike = async (commentId) => {
+    if (!user) {
+      setMessage("Please login to like comments.");
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+
+    try {
+      const res = await toggleCommentLike(commentId);
+      const likeData = res.data?.data || {};
+
+      setComments((prev) =>
+        prev.map((comment) =>
+          comment._id === commentId
+            ? {
+                ...comment,
+                isLiked: Boolean(likeData.isLiked),
+                likeCount: likeData.likeCount ?? comment.likeCount ?? 0,
+              }
+            : comment,
+        ),
+      );
+    } catch (err) {
+      console.error("Comment like failed", err);
+      setMessage(err?.response?.data?.message || "Failed to update comment like");
     }
   };
 
@@ -456,7 +485,24 @@ export default function VideoPlayerPage() {
                             </div>
                           </form>
                         ) : (
-                          <p className="text-gray-300 break-words">{c.content}</p>
+                          <div className="space-y-3">
+                            <p className="text-gray-300 break-words">{c.content}</p>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCommentLike(c._id)}
+                              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                                c.isLiked
+                                  ? "bg-rose-500/15 text-rose-300 hover:bg-rose-500/25"
+                                  : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                              }`}
+                            >
+                              <svg className="w-4 h-4" fill={c.isLiked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                              <span>{c.likeCount || 0}</span>
+                              <span>{c.isLiked ? "Liked" : "Like"}</span>
+                            </button>
+                          </div>
                         )}
                       </div>
 

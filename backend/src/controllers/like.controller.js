@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { Like } from '../models/like.model.js'
 import { Video } from '../models/video.model.js'
+import { Comment } from '../models/comment.model.js'
 import { Notification } from '../models/notification.model.js'
 import ApiError from '../utils/ApiError.js'
 import { ApiResponse } from '../utils/ApiResponce.js'
@@ -96,8 +97,91 @@ const getVideoLikeCount = asyncHandler(async (req, res) => {
   )
 })
 
+const toggleCommentLike = asyncHandler(async (req, res) => {
+  const { commentId } = req.params
+
+  if (!commentId || !mongoose.Types.ObjectId.isValid(commentId)) {
+    throw new ApiError(400, 'Invalid or missing comment ID')
+  }
+
+  const comment = await Comment.findById(commentId)
+    .populate('owner', 'username fullName avatar')
+    .populate('video', 'title')
+
+  if (!comment) {
+    throw new ApiError(404, 'Comment not found')
+  }
+
+  const existingLike = await Like.findOne({
+    comment: commentId,
+    likedBy: req.user._id,
+  })
+
+  let isLiked = false
+
+  if (existingLike) {
+    await existingLike.deleteOne()
+  } else {
+    await Like.create({
+      likedBy: req.user._id,
+      comment: commentId,
+    })
+    isLiked = true
+
+    try {
+      if (comment.owner?._id?.toString() !== req.user._id.toString()) {
+        const notification = await Notification.create({
+          recipient: comment.owner._id,
+          sender: req.user._id,
+          type: 'LIKE',
+          message: `${req.user.username} liked your comment`,
+          url: `/watch/${comment.video?._id || ''}`,
+        })
+
+        if (req.io) {
+          req.io
+            .to(comment.owner._id.toString())
+            .emit('new-notification', notification)
+        }
+      }
+    } catch (error) {
+      console.error('Error sending notification for comment like:', error)
+    }
+  }
+
+  const likeCount = await Like.countDocuments({ comment: commentId })
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        commentId,
+        isLiked,
+        likeCount,
+      },
+      isLiked ? 'Comment liked successfully' : 'Comment like removed successfully',
+    ),
+  )
+})
+
+const getCommentLikeCount = asyncHandler(async (req, res) => {
+  const { commentId } = req.params
+
+  if (!commentId || !mongoose.Types.ObjectId.isValid(commentId)) {
+    throw new ApiError(400, 'Invalid or missing comment ID')
+  }
+
+  const count = await Like.countDocuments({ comment: commentId })
+
+  return res.status(200).json(
+    new ApiResponse(200, { count }, 'Comment like count fetched successfully')
+  )
+})
+
 export {
   toggleVideoLike,
   getLikedVideos,
-  getVideoLikeCount
+  getVideoLikeCount,
+  toggleCommentLike,
+  getCommentLikeCount,
 }
