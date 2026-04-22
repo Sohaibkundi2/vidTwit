@@ -129,8 +129,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
   try {
     createdUserRecord = await User.create({
-      username: normalizedUsername,
-      email: normalizedEmail,
+      username: sanitizedUsername,
+      email: sanitizedEmail,
       password,
       fullName: fullName.trim(),
       avatar: avatar?.url,
