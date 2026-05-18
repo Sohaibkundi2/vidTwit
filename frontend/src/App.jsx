@@ -24,6 +24,7 @@ import CreatePlaylistPage from './pages/CreatePlaylistPage'
 import EditPlaylistPage from './pages/EditPlaylistPage'
 import WatchLaterPage from './pages/WatchLaterPage'
 import NotFound from './pages/NotFound'
+import FollowingFeedPage from './pages/FollowingFeedPage'
 
 function App() {
   const location = useLocation()
@@ -34,6 +35,7 @@ function App() {
     '/videos',
     '/tweets',
     '/playlists',
+    '/following',
   ].includes(location.pathname) &&
     !location.pathname.startsWith('/watch/') &&
     !location.pathname.startsWith('/tweet/') &&
@@ -64,6 +66,9 @@ function App() {
         <Route path="/playlists" element={<PlaylistsPage />} />
         <Route path="/watch-later" element={<ProtectedRoute />}>
           <Route index element={<WatchLaterPage />} />
+        </Route>
+        <Route path="/following" element={<ProtectedRoute />}>
+          <Route index element={<FollowingFeedPage />} />
         </Route>
         <Route path="/playlist/:playlistId" element={<PlaylistDetailPage />} />
 
