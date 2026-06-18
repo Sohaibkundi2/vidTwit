@@ -1,10 +1,102 @@
 import mongoose, { isValidObjectId } from 'mongoose'
-import { User } from '../models/user.model.js'
 import { Subscription } from '../models/subscription.model.js'
 import { Notification } from '../models/notification.model.js'
+import { Video } from '../models/video.model.js'
+import { Tweet } from '../models/tweet.model.js'
+import { Repost } from '../models/repost.model.js'
 import  ApiError  from '../utils/ApiError.js'
 import { ApiResponse } from '../utils/ApiResponce.js'
 import { asyncHandler } from '../utils/asyncHandler.js'
+
+const attachFeedVideoState = async (videos, user) => {
+  if (!videos.length) {
+    return videos
+  }
+
+  const watchLaterIds = new Set((user?.watchLater || []).map(id => id.toString()))
+  const videoIds = videos.map(video => video._id)
+  const repostCounts = await Repost.aggregate([
+    {
+      $match: {
+        video: { $in: videoIds },
+      },
+    },
+    {
+      $group: {
+        _id: '$video',
+        repostCount: { $sum: 1 },
+      },
+    },
+  ])
+
+  const repostCountMap = new Map(
+    repostCounts.map(item => [item._id.toString(), item.repostCount]),
+  )
+
+  let repostedVideoIds = new Set()
+
+  if (user?._id) {
+    const userReposts = await Repost.find({
+      repostedBy: user._id,
+      video: { $in: videoIds },
+    }).select('video')
+
+    repostedVideoIds = new Set(
+      userReposts.map(repost => repost.video.toString()),
+    )
+  }
+
+  return videos.map(video => ({
+    ...video,
+    isInWatchLater: watchLaterIds.has(video._id.toString()),
+    repostCount: repostCountMap.get(video._id.toString()) || 0,
+    isReposted: repostedVideoIds.has(video._id.toString()),
+  }))
+}
+
+const attachFeedTweetState = async (tweets, userId) => {
+  if (!tweets.length) {
+    return tweets
+  }
+
+  const tweetIds = tweets.map(tweet => tweet._id)
+  const repostCounts = await Repost.aggregate([
+    {
+      $match: {
+        tweet: { $in: tweetIds },
+      },
+    },
+    {
+      $group: {
+        _id: '$tweet',
+        repostCount: { $sum: 1 },
+      },
+    },
+  ])
+
+  const repostCountMap = new Map(
+    repostCounts.map(item => [item._id.toString(), item.repostCount]),
+  )
+
+  let repostedTweetIds = new Set()
+
+  if (userId) {
+    const userReposts = await Repost.find({
+      repostedBy: userId,
+      tweet: { $in: tweetIds },
+    }).select('tweet')
+
+    repostedTweetIds = new Set(
+      userReposts.map(repost => repost.tweet.toString()),
+    )
+  }
+
+  return tweets.map(tweet => ({
+    ...tweet,
+    repostCount: repostCountMap.get(tweet._id.toString()) || 0,
+    isReposted: repostedTweetIds.has(tweet._id.toString()),
+  }))
+}
 
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params || {}
@@ -107,4 +199,103 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     )
 })
 
-export { toggleSubscription, getUserChannelSubscribers, getSubscribedChannels }
+const getFollowingFeed = asyncHandler(async (req, res) => {
+  const page = Math.max(parseInt(req.query.page, 10) || 1, 1)
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 12, 1), 30)
+  const fetchCount = page * limit
+  const sliceStart = (page - 1) * limit
+
+  const subscriptions = await Subscription.find({
+    subscriber: req.user._id,
+  }).populate('channel', 'username avatar fullName')
+
+  const followedChannels = subscriptions
+    .map(subscription => subscription.channel)
+    .filter(Boolean)
+
+  if (!followedChannels.length) {
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          items: [],
+          videos: [],
+          tweets: [],
+          channels: [],
+          page,
+          limit,
+          totalItems: 0,
+          hasMore: false,
+        },
+        'Following feed fetched successfully',
+      ),
+    )
+  }
+
+  const channelIds = followedChannels.map(channel => channel._id)
+
+  const [videoDocs, tweetDocs] = await Promise.all([
+    Video.find({
+      owner: { $in: channelIds },
+      isPublished: true,
+    })
+      .populate('owner', 'username avatar fullName')
+      .sort({ createdAt: -1 })
+      .limit(fetchCount),
+    Tweet.find({
+      owner: { $in: channelIds },
+    })
+      .populate('owner', 'username avatar fullName')
+      .sort({ createdAt: -1 })
+      .limit(fetchCount),
+  ])
+
+  const videos = await attachFeedVideoState(
+    videoDocs.map(video => video.toObject()),
+    req.user,
+  )
+  const tweets = await attachFeedTweetState(
+    tweetDocs.map(tweet => tweet.toObject()),
+    req.user._id,
+  )
+
+  const feedItems = [
+    ...videos.map(video => ({
+      type: 'video',
+      createdAt: video.createdAt,
+      data: video,
+    })),
+    ...tweets.map(tweet => ({
+      type: 'tweet',
+      createdAt: tweet.createdAt,
+      data: tweet,
+    })),
+  ]
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+
+  const pagedItems = feedItems.slice(sliceStart, sliceStart + limit)
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        items: pagedItems,
+        videos,
+        tweets,
+        channels: followedChannels,
+        page,
+        limit,
+        totalItems: feedItems.length,
+        hasMore: sliceStart + limit < feedItems.length,
+      },
+      'Following feed fetched successfully',
+    ),
+  )
+})
+
+export {
+  toggleSubscription,
+  getUserChannelSubscribers,
+  getSubscribedChannels,
+  getFollowingFeed,
+}

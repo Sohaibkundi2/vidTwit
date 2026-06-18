@@ -1,10 +1,55 @@
 import mongoose from "mongoose"
 import { Comment } from "../models/comment.model.js"
 import { Video } from "../models/video.model.js"
+import { Like } from '../models/like.model.js'
 import { Notification } from "../models/notification.model.js"
 import ApiError from "../utils/ApiError.js";
 import {ApiResponse} from "../utils/ApiResponce.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
+
+const attachCommentLikeState = async (comments, userId) => {
+    if (!comments.length) {
+        return comments
+    }
+
+    const commentIds = comments.map(comment => comment._id)
+    const likeCounts = await Like.aggregate([
+        {
+            $match: {
+                comment: { $in: commentIds },
+            },
+        },
+        {
+            $group: {
+                _id: '$comment',
+                likeCount: { $sum: 1 },
+            },
+        },
+    ])
+
+    const likeCountMap = new Map(
+        likeCounts.map(item => [item._id.toString(), item.likeCount]),
+    )
+
+    let likedCommentIds = new Set()
+
+    if (userId) {
+        const userLikes = await Like.find({
+            likedBy: userId,
+            comment: { $in: commentIds },
+        }).select('comment')
+
+        likedCommentIds = new Set(
+            userLikes.map(like => like.comment.toString()),
+        )
+    }
+
+    return comments.map(comment => ({
+        ...comment,
+        likeCount: likeCountMap.get(comment._id.toString()) || 0,
+        isLiked: likedCommentIds.has(comment._id.toString()),
+    }))
+}
 
 
 const getVideoComments = asyncHandler(async (req, res) => {
@@ -26,6 +71,11 @@ const getVideoComments = asyncHandler(async (req, res) => {
   };
 
   const result = await Comment.paginate({ video: videoId }, options);
+
+    result.docs = await attachCommentLikeState(
+        result.docs.map(comment => comment.toObject()),
+        req.user?._id,
+    )
 
   return res
     .status(200)
@@ -52,7 +102,12 @@ const addComment = asyncHandler(async (req, res) => {
         owner: req.user?._id,
     })
 
-    await newComment.populate("owner", "username avatar");
+        await newComment.populate("owner", "username fullName avatar");
+
+        const [commentWithLikeState] = await attachCommentLikeState(
+            [newComment.toObject()],
+            req.user?._id,
+        )
 
     // Notification Logic
     try {
@@ -77,7 +132,7 @@ const addComment = asyncHandler(async (req, res) => {
 
     return res
         .status(201)
-        .json(new ApiResponse(201, newComment, "Comment added successfully"));
+        .json(new ApiResponse(201, commentWithLikeState, "Comment added successfully"));
 })
 
 const updateComment = asyncHandler(async (req, res) => {
@@ -103,11 +158,16 @@ const updateComment = asyncHandler(async (req, res) => {
     comment.content = content;
     await comment.save();
 
-    await comment.populate("owner", "username avatar");
+        await comment.populate("owner", "username fullName avatar");
+
+        const [commentWithLikeState] = await attachCommentLikeState(
+            [comment.toObject()],
+            req.user?._id,
+        )
 
     return res
         .status(200)
-        .json(new ApiResponse(200, comment, "Comment updated successfully"));
+                .json(new ApiResponse(200, commentWithLikeState, "Comment updated successfully"));
 
 
 })
@@ -128,6 +188,7 @@ if (comment.owner.toString() !== req.user?._id.toString()) {
     }
 
     await comment.deleteOne();
+    await Like.deleteMany({ comment: comment._id })
 
     return res
         .status(200)

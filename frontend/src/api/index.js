@@ -96,6 +96,7 @@ export const addComment = (videoId, data) => API.post(`/comments/${videoId}`, da
 export const updateComment = (commentId, data) => API.patch(`/comments/update/${commentId}`, data); //Done
 export const deleteComment = (commentId) => API.delete(`/comments/delete/${commentId}`); //Done
 export const getComments = (videoId) => API.get(`/comments/${videoId}`); //Done
+export const toggleCommentLike = (commentId) => API.patch(`/likes/comments/${commentId}/toggle`);
 
 //
 //  LIKE APIs

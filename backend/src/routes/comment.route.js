@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyJWT } from '../middlewares/auth.middleware.js';
+import { optionalVerifyJWT, verifyJWT } from '../middlewares/auth.middleware.js';
 import { checkOwnership } from '../middlewares/checkOwnership.js';
 import { Comment } from '../models/comment.model.js';
 import {
@@ -12,7 +12,7 @@ import {
 const router = Router();
 
 
-router.get('/:videoId', getVideoComments);
+router.get('/:videoId', optionalVerifyJWT, getVideoComments);
 
 
 router.post('/:videoId', verifyJWT, addComment);
